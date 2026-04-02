@@ -27,7 +27,7 @@ mongoose.connect(uri, {
 })
 .then(() => console.log('✅ MongoDB connecté'))
 .catch(err => console.error('❌ Erreur MongoDB:', err));
-/*
+
 // 📩 Configuration API Brevo (nouvelle version 2024)
 const apiInstance = new Brevo.TransactionalEmailsApi();
 apiInstance.setApiKey(Brevo.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
@@ -36,7 +36,7 @@ apiInstance.setApiKey(Brevo.TransactionalEmailsApiApiKeys.apiKey, process.env.BR
 async function sendEmail(to, subject, htmlContent) {
   const emailData = {
     to: [{ email: to }],
-    sender: { name: 'DSO-Afrique', email: 'theafricancode1@gmail.com' },
+    sender: { name: 'vexolead', email: 'vexolead@gmail.com' },
     subject,
     htmlContent,
   };
@@ -48,7 +48,7 @@ async function sendEmail(to, subject, htmlContent) {
     console.error('❌ Erreur envoi email:', error.response?.text || error.message);
   }
 }
-*/
+
 // 🚀 Route POST /api/contact
 app.post('/api/contact', async (req, res) => {
   try {
@@ -62,7 +62,7 @@ app.post('/api/contact', async (req, res) => {
     // 1️⃣ Sauvegarde dans MongoDB
     const newContact = new Contact({ name, email, phoneNumber, profession, message });
     await newContact.save();
-/*
+
     // 2️⃣ Email au prospect
     const htmlProspect = `
       <div style="font-family: Arial, sans-serif; color: #333;">
@@ -97,7 +97,6 @@ app.post('/api/contact', async (req, res) => {
     ]);
 
     console.log('✅ Emails envoyés avec succès !');
-    */
     res.status(201).json({ message: 'Message envoyé avec succès 🚀' });
 
   } catch (error) {
