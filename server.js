@@ -65,23 +65,35 @@ app.post('/api/contact', async (req, res) => {
 
     // 2️⃣ Email au prospect
     const htmlProspect = `
-      <div style="font-family: Arial, sans-serif; color: #333;">
-        <h2>Bonjour ${name},</h2>
-        <p>Merci d’avoir contacté <strong>DSO-Afrique</strong> 👋</p>
-        <p>Nous avons bien reçu votre message.
-        <p>Notre équipe vous contactera sous peu pour discuter de votre projet.</p>
-        <br/>
-        <p>À très bientôt,</p>
-        <p><strong>L’équipe DSO-Afrique</strong></p>
-        <hr/>
-        <small>Ce message est automatique, merci de ne pas y répondre.</small>
-      </div>
-    `;
+  <div style="font-family: Arial, sans-serif; color: #333;">
+    <h2>Bonjour ${name},</h2>
+
+    <p>Merci pour votre intérêt envers <strong>VexoLead</strong> 👋</p>
+
+    <p>Nous avons bien reçu votre demande.</p>
+
+    <p>
+      Notre équipe va vous contacter rapidement afin de mieux comprendre vos besoins 
+      et vous proposer une solution adaptée pour développer votre acquisition de clients.
+    </p>
+
+    <br/>
+
+    <p>À très bientôt,</p>
+    <p><strong>L’équipe VexoLead</strong></p>
+
+    <hr/>
+
+    <small>
+      Ce message est automatique, merci de ne pas y répondre.
+    </small>
+  </div>
+`;
 
     // 3️⃣ Email à l’administrateur
     const htmlAdmin = `
       <div style="font-family: Arial, sans-serif; color: #333;">
-        <h3>📩 Nouveau message reçu depuis le site DSO-Afrique</h3>
+        <h3>📩 Nouveau message reçu depuis le site vexolead</h3>
         <p><strong>Nom :</strong> ${name}</p>
         <p><strong>Email :</strong> ${email}</p>
         <p><strong>Téléphone :</strong> ${phoneNumber || 'Non renseigné'}</p>
