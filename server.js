@@ -1,3 +1,52 @@
+require('dotenv').config();
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const Brevo = require('@getbrevo/brevo');
+const Contact = require('./models/Contact');
+
+const app = express();
+
+app.use(cors({
+  origin: ['https://www.vexolead.com', 'https://vexolead.com'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
+app.use(bodyParser.json());
+
+const uri = 'mongodb+srv://ayoubzekhnine96:CwTQ21a8wUgoTLSp@clustersawti.wqsgj.mongodb.net/vexolead';
+
+mongoose.connect(uri)
+  .then(() => console.log('✅ MongoDB connecté'))
+  .catch(err => console.error('❌ Erreur MongoDB:', err));
+
+const apiInstance = new Brevo.TransactionalEmailsApi();
+apiInstance.setApiKey(
+  Brevo.TransactionalEmailsApiApiKeys.apiKey,
+  process.env.BREVO_API_KEY
+);
+
+async function sendEmail(to, subject, htmlContent) {
+  const emailData = {
+    to: [{ email: to }],
+    sender: { name: 'VexoLead', email: 'vexolead@gmail.com' },
+    subject,
+    htmlContent,
+  };
+
+  try {
+    const response = await apiInstance.sendTransacEmail(emailData);
+    console.log(`✅ Email envoyé à ${to}`);
+    return response;
+  } catch (error) {
+    console.error('❌ Erreur envoi email:', error.response?.text || error.message);
+    throw error;
+  }
+}
+
 app.post('/api/contact', async (req, res) => {
   try {
     const {
@@ -10,15 +59,16 @@ app.post('/api/contact', async (req, res) => {
       startReady
     } = req.body;
 
-    if (!name || !email || !message || !budgetReady || !startReady) {
-      return res.status(400).json({ message: 'Veuillez remplir tous les champs obligatoires.' });
+    if (!name || !email || !phoneNumber || !profession || !message || !budgetReady || !startReady) {
+      return res.status(400).json({
+        message: 'Veuillez remplir tous les champs obligatoires.'
+      });
     }
 
     const isQualified =
-      ['oui_clair', 'oui_demarrer'].includes(budgetReady) &&
+      ['oui_demarrer', 'oui_clair'].includes(budgetReady) &&
       ['cette_semaine', 'deux_semaines'].includes(startReady);
 
-    // Sauvegarde toujours le contact en base
     const newContact = new Contact({
       name,
       email,
@@ -32,7 +82,6 @@ app.post('/api/contact', async (req, res) => {
 
     await newContact.save();
 
-    // Si pas qualifié => pas d'email
     if (!isQualified) {
       return res.status(201).json({
         message: 'Contact enregistré mais non qualifié.',
@@ -40,26 +89,26 @@ app.post('/api/contact', async (req, res) => {
       });
     }
 
-    // Email au prospect qualifié
     const htmlProspect = `
       <div style="font-family: Arial, sans-serif; color: #333;">
         <h2>Bonjour ${name},</h2>
         <p>Merci pour votre intérêt envers <strong>VexoLead</strong> 👋</p>
         <p>Votre profil semble correspondre à notre accompagnement.</p>
-        <p>Vous pouvez maintenant réserver un appel afin que nous échangions sur votre projet.</p>
+        <p>Vous pouvez maintenant réserver un appel stratégique afin que nous échangions sur votre projet.</p>
         <br/>
         <p>À très bientôt,</p>
         <p><strong>L’équipe VexoLead</strong></p>
+        <hr/>
+        <small>Ce message est automatique, merci de ne pas y répondre.</small>
       </div>
     `;
 
-    // Email admin uniquement si qualifié
     const htmlAdmin = `
       <div style="font-family: Arial, sans-serif; color: #333;">
         <h3>🔥 Nouveau prospect qualifié depuis le site VexoLead</h3>
         <p><strong>Nom :</strong> ${name}</p>
         <p><strong>Email :</strong> ${email}</p>
-        <p><strong>Téléphone :</strong> ${phoneNumber || 'Non renseigné'}</p>
+        <p><strong>Téléphone :</strong> ${phoneNumber}</p>
         <p><strong>Activité :</strong> ${profession}</p>
         <p><strong>Budget :</strong> ${budgetReady}</p>
         <p><strong>Démarrage :</strong> ${startReady}</p>
@@ -79,6 +128,11 @@ app.post('/api/contact', async (req, res) => {
 
   } catch (error) {
     console.error('❌ Erreur serveur:', error);
-    res.status(500).json({ message: 'Erreur serveur lors de l’envoi du message.' });
+    return res.status(500).json({
+      message: 'Erreur serveur lors de l’envoi du message.'
+    });
   }
 });
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`🚀 Serveur lancé sur le port ${PORT}`));
