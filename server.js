@@ -105,7 +105,7 @@ app.post('/api/contact', async (req, res) => {
     // 4️⃣ Envoi des deux emails
     await Promise.all([
       sendEmail(email, 'Merci pour votre message -VexoLead', htmlProspect),
-      sendEmail('vexolead@gmail.com', `📩 Nouveau message de ${name}`, htmlAdmin)
+      sendEmail('ayoubzekhnine96@gmail.com', `📩 Nouveau message de ${name}`, htmlAdmin)
     ]);
 
     console.log('✅ Emails envoyés avec succès !');
