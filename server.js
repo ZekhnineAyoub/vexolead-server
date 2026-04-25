@@ -1,122 +1,84 @@
-require('dotenv').config();
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-const Brevo = require('@getbrevo/brevo');
-const Contact = require('./models/Contact');
-
-const app = express();
-
-// 🧩 Middleware
-app.use(cors({
-  origin: ['https://www.vexolead.com','https://vexolead.com'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
-}));
-
-app.use(bodyParser.json());
-
-// 🔗 Connexion MongoDB
-const uri = 'mongodb+srv://ayoubzekhnine96:CwTQ21a8wUgoTLSp@clustersawti.wqsgj.mongodb.net/vexolead';
-
-mongoose.connect(uri, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
-.then(() => console.log('✅ MongoDB connecté'))
-.catch(err => console.error('❌ Erreur MongoDB:', err));
-
-// 📩 Configuration API Brevo (nouvelle version 2024)
-const apiInstance = new Brevo.TransactionalEmailsApi();
-apiInstance.setApiKey(Brevo.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
-
-// ✉️ Fonction d’envoi d’email via API Brevo
-async function sendEmail(to, subject, htmlContent) {
-  const emailData = {
-    to: [{ email: to }],
-    sender: { name: 'vexolead', email: 'vexolead@gmail.com' },
-    subject,
-    htmlContent,
-  };
-
-  try {
-    const response = await apiInstance.sendTransacEmail(emailData);
-    console.log(`✅ Email envoyé à ${to} (Message ID: ${response.messageId || 'non fourni'})`);
-  } catch (error) {
-    console.error('❌ Erreur envoi email:', error.response?.text || error.message);
-  }
-}
-
-// 🚀 Route POST /api/contact
 app.post('/api/contact', async (req, res) => {
   try {
-    const { name, email, phoneNumber, profession, message } = req.body;
+    const {
+      name,
+      email,
+      phoneNumber,
+      profession,
+      message,
+      budgetReady,
+      startReady
+    } = req.body;
 
-    // Vérification basique
-    if (!name || !email || !message) {
+    if (!name || !email || !message || !budgetReady || !startReady) {
       return res.status(400).json({ message: 'Veuillez remplir tous les champs obligatoires.' });
     }
 
-    // 1️⃣ Sauvegarde dans MongoDB
-    const newContact = new Contact({ name, email, phoneNumber, profession, message });
+    const isQualified =
+      ['oui_clair', 'oui_demarrer'].includes(budgetReady) &&
+      ['cette_semaine', 'deux_semaines'].includes(startReady);
+
+    // Sauvegarde toujours le contact en base
+    const newContact = new Contact({
+      name,
+      email,
+      phoneNumber,
+      profession,
+      message,
+      budgetReady,
+      startReady,
+      isQualified
+    });
+
     await newContact.save();
 
-    // 2️⃣ Email au prospect
+    // Si pas qualifié => pas d'email
+    if (!isQualified) {
+      return res.status(201).json({
+        message: 'Contact enregistré mais non qualifié.',
+        qualified: false
+      });
+    }
+
+    // Email au prospect qualifié
     const htmlProspect = `
-  <div style="font-family: Arial, sans-serif; color: #333;">
-    <h2>Bonjour ${name},</h2>
-
-    <p>Merci pour votre intérêt envers <strong>VexoLead</strong> 👋</p>
-
-    <p>Nous avons bien reçu votre demande.</p>
-
-    <p>
-      Notre équipe va vous contacter rapidement afin de mieux comprendre vos besoins 
-      et vous proposer une solution adaptée pour développer votre acquisition de clients.
-    </p>
-
-    <br/>
-
-    <p>À très bientôt,</p>
-    <p><strong>L’équipe VexoLead</strong></p>
-
-    <hr/>
-
-    <small>
-      Ce message est automatique, merci de ne pas y répondre.
-    </small>
-  </div>
-`;
-
-    // 3️⃣ Email à l’administrateur
-    const htmlAdmin = `
       <div style="font-family: Arial, sans-serif; color: #333;">
-        <h3>📩 Nouveau message reçu depuis le site vexolead</h3>
-        <p><strong>Nom :</strong> ${name}</p>
-        <p><strong>Email :</strong> ${email}</p>
-        <p><strong>Téléphone :</strong> ${phoneNumber || 'Non renseigné'}</p>
-        <p><strong>Profession :</strong> ${profession}</p>
-        <p><strong>Message :</strong><br>${message}</p>
+        <h2>Bonjour ${name},</h2>
+        <p>Merci pour votre intérêt envers <strong>VexoLead</strong> 👋</p>
+        <p>Votre profil semble correspondre à notre accompagnement.</p>
+        <p>Vous pouvez maintenant réserver un appel afin que nous échangions sur votre projet.</p>
+        <br/>
+        <p>À très bientôt,</p>
+        <p><strong>L’équipe VexoLead</strong></p>
       </div>
     `;
 
-    // 4️⃣ Envoi des deux emails
+    // Email admin uniquement si qualifié
+    const htmlAdmin = `
+      <div style="font-family: Arial, sans-serif; color: #333;">
+        <h3>🔥 Nouveau prospect qualifié depuis le site VexoLead</h3>
+        <p><strong>Nom :</strong> ${name}</p>
+        <p><strong>Email :</strong> ${email}</p>
+        <p><strong>Téléphone :</strong> ${phoneNumber || 'Non renseigné'}</p>
+        <p><strong>Activité :</strong> ${profession}</p>
+        <p><strong>Budget :</strong> ${budgetReady}</p>
+        <p><strong>Démarrage :</strong> ${startReady}</p>
+        <p><strong>Objectif :</strong><br>${message}</p>
+      </div>
+    `;
+
     await Promise.all([
-      sendEmail(email, 'Merci pour votre message -VexoLead', htmlProspect),
-      sendEmail('ayoubzekhnine96@gmail.com', `📩 Nouveau message de ${name}`, htmlAdmin)
+      sendEmail(email, 'Votre demande VexoLead est validée', htmlProspect),
+      sendEmail('ayoubzekhnine96@gmail.com', `🔥 Prospect qualifié : ${name}`, htmlAdmin)
     ]);
 
-    console.log('✅ Emails envoyés avec succès !');
-    res.status(201).json({ message: 'Message envoyé avec succès 🚀' });
+    return res.status(201).json({
+      message: 'Prospect qualifié enregistré avec succès 🚀',
+      qualified: true
+    });
 
   } catch (error) {
     console.error('❌ Erreur serveur:', error);
     res.status(500).json({ message: 'Erreur serveur lors de l’envoi du message.' });
   }
 });
-
-// 🌐 Démarrage du serveur
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Serveur lancé sur le port ${PORT}`));
